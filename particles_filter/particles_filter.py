@@ -10,6 +10,8 @@ class ParticlesFilter:
         self._w, self._h = image_size
 
         self._resample: int = resample
+        self._particle_max = np.zeros(2)
+        self._v = np.zeros(2)
 
         self._weights = None
         self._particles = None
@@ -50,7 +52,15 @@ class ParticlesFilter:
         # Choose the particle with the highest weight
         max_weight = np.argmax(self._weights)
 
-        return np.array([self._particles[max_weight]])
+        if np.all(self._v == 0):
+            self._v = np.array([self._resample, self._resample])
+
+        else:
+            self._v = self._particles[max_weight] - self._particle_max
+
+        self._particle_max = np.array([self._particles[max_weight]])
+
+        return self._particle_max
 
     def selection(self):
         cum_weights = np.cumsum(self._weights)
@@ -63,10 +73,11 @@ class ParticlesFilter:
         self._weights = np.ones(self._num_particles) / self._num_particles
 
     def resampling(self):
+        r = np.sum(np.abs(self._v)) + self._resample
 
         for i in range(len(self._particles)):
-            self._particles[i][0] += np.random.randint(low=-self._resample, high=self._resample+1)
-            self._particles[i][1] += np.random.randint(low=-self._resample, high=self._resample+1)
+            self._particles[i][0] += np.random.randint(low=-r, high=r+1)
+            self._particles[i][1] += np.random.randint(low=-r, high=r+1)
 
 
 def hsv_color_filter(frame: np.ndarray, upper_range: np.ndarray, lower_range: np.ndarray) -> np.ndarray or None:
@@ -101,13 +112,14 @@ def main() -> None:
 
     lower_range, upper_range = np.array([0, 100, 150]), np.array([255, 255, 255])
 
+    # Parameters of the particles filter
     particles_size = 35
     num_particles = 40
 
     filter_particles = ParticlesFilter(num_particles=num_particles, particle_size=particles_size,
-                                       image_size=(240, 320), resample=30)
+                                       image_size=(240, 320), resample=20)
 
-    for num in range(1, 41):
+    for num in range(1, 61):
 
         if num == 1:
             # Initialize the particles
@@ -132,7 +144,7 @@ def main() -> None:
             draw_particles(img, high_part, particles_size, (0, 0, 255), 3)
 
             cv2.imshow("Particles Filter", img)
-            cv2.waitKey(500)
+            cv2.waitKey(350)
 
     cv2.destroyAllWindows()
 
